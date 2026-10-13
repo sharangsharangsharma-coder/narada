@@ -1,6 +1,6 @@
 {
-  "name": "SignSpeak",
-  "short_name": "SignSpeak",
+  "name": "Narada",
+  "short_name": "Narada",
   "description": "Translate between English and Indian Sign Language with a 3D signing avatar.",
   "start_url": "./",
   "scope": "./",
