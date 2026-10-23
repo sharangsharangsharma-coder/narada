@@ -14,7 +14,7 @@ export const AVATAR = {
   // Optional. A separate .glb holding just the character (mesh + rig), e.g.
   // 'assets/avatar/character.glb'. Leave as null to use the first available
   // clip's .glb as the character — with one export you only need summer.glb.
-  character: null,
+  character: 'assets/clips/character.glb',
 
   // Camera framing, as fractions of the character's height.
   //   focusY: where the camera looks (0 = feet, 1 = top of head)
