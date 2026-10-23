@@ -20,7 +20,7 @@ export const AVATAR = {
   //   focusY: where the camera looks (0 = feet, 1 = top of head)
   //   height: how much of the character's height is visible
   //   width:  how much of the height the view must fit horizontally (arms out)
-  frame: { focusY: 0.69, height: 0.62, width: 0.50 },
+  frame: { focusY: 0.90, height: 0.62, width: 0.50 },
 };
 
 // id       → unique key, lowercase, no spaces
