@@ -191,28 +191,6 @@ export class Avatar {
       this.composer.addPass(new THREE.OutputPass());
     }
 
-    // Desktop-only orbit/zoom: lets the demo stage be dragged around like a
-    // 3D viewer. Gated the same way as post-processing (mouse/desktop only --
-    // a phone screen is too small for this to feel good and drag conflicts
-    // with page scroll). _frame() keeps auto-positioning the camera on resize
-    // until the person actually drags or scrolls the view, at which point we
-    // stop fighting them; _frame() still updates controls.target so the pivot
-    // point stays correct if the character/sign changes.
-    this._userOrbiting = false;
-    if (!isLowPower) {
-      this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-      this.controls.enableDamping = true;
-      this.controls.dampingFactor = 0.08;
-      this.controls.enablePan = false;
-      this.controls.minDistance = 0.3;
-      this.controls.maxDistance = 6;
-      this.controls.minPolarAngle = Math.PI * 0.12;
-      this.controls.maxPolarAngle = Math.PI * 0.62;
-      this.controls.rotateSpeed = 0.6;
-      this.controls.zoomSpeed = 0.7;
-      this.controls.addEventListener('start', () => { this._userOrbiting = true; });
-    }
-
     this._ro = new ResizeObserver(() => this._resize());
     document.addEventListener('visibilitychange', () => this._kick());
   }
@@ -360,16 +338,8 @@ export class Avatar {
     const distV = (size.y * height) / 2 / t;
     const distH = (size.y * width) / 2 / (t * this.camera.aspect);
     const dist = Math.max(distV, distH);
-    // Once the person has grabbed the view themselves, stop snapping the
-    // camera back on every resize/character change -- just keep the orbit
-    // pivot pointed at the (possibly new) character center.
-    if (this._userOrbiting && this.controls) {
-      this.controls.target.set(c.x, y, c.z);
-      return;
-    }
     this.camera.position.set(c.x, y, this.bounds.max.z + dist);
     this.camera.lookAt(c.x, y, c.z);
-    if (this.controls) this.controls.target.set(c.x, y, c.z);
   }
 
   _kick() {
@@ -387,7 +357,6 @@ export class Avatar {
           this.root.rotation.y = Math.sin(t * 0.6) * 0.18;
           this.root.position.y = Math.sin(t * 1.4) * 0.006;
         }
-        this.controls?.update();
         if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
       };
       this._raf = requestAnimationFrame(tick);
