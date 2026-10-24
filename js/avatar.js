@@ -24,6 +24,37 @@ async function probe(url) {
   } catch { return false; }
 }
 
+// A small procedural "studio room" used purely to bake an environment map from
+// (via PMREMGenerator), so materials get realistic reflections/ambient occlusion
+// without needing to ship an external HDRI file. Never rendered directly.
+function buildStudioRoom() {
+  const room = new THREE.Scene();
+  const geo = new THREE.BoxGeometry();
+  geo.deleteAttribute('uv');
+  const mat = new THREE.MeshStandardMaterial({ side: THREE.BackSide });
+  const box = new THREE.Mesh(geo, mat);
+  box.scale.setScalar(20);
+  room.add(box);
+
+  const addPanel = (color, intensity, w, h, x, y, z, rx = 0, ry = 0, rz = 0) => {
+    const light = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
+    );
+    light.position.set(x, y, z);
+    light.rotation.set(rx, ry, rz);
+    light.material.color.multiplyScalar(intensity);
+    room.add(light);
+  };
+  // Soft key panel (front-upper), a cooler fill panel (side), and a warm
+  // bounce panel (floor-ish) -- gives the environment map some directional
+  // character instead of a flat grey ambient.
+  addPanel(0xfff4e6, 10, 6, 6, 2, 6, 4, 0, -0.4, 0);
+  addPanel(0xdfe6ff, 6, 5, 8, -6, 3, -2, 0, 0.6, 0);
+  addPanel(0xffffff, 3, 8, 8, 0, -4, 0, Math.PI / 2, 0, 0);
+  return room;
+}
+
 export class Avatar {
   constructor(cfg, signs) {
     this.cfg = cfg;
@@ -60,18 +91,63 @@ export class Avatar {
     }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(0x000000, 0);
+    // Filmic tone mapping + correct color space: the single biggest things that
+    // make a real-time render stop looking like a flat "game asset" and start
+    // reading as a graded, cinematic image.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+    if ('outputColorSpace' in this.renderer) this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    else if ('outputEncoding' in this.renderer) this.renderer.outputEncoding = THREE.sRGBEncoding;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.05, 100);
     this._last = 0;
     this._elapsed = 0;
     this.loader = new THREE.GLTFLoader();
 
-    // Lighting: bright front-ish key + fill, soft ambient, and a faint violet rim
-    // from behind (the Nocturne accent, kept subtle so it doesn't read as the main light).
-    this.scene.add(new THREE.HemisphereLight(0xeef0ff, 0x2a2c3f, 2.2));
-    const key = new THREE.DirectionalLight(0xffffff, 1.8); key.position.set(0.8, 1.6, 4); this.scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 1.4); fill.position.set(-1.6, 0.8, 2.5); this.scene.add(fill);
+    // Image-based lighting: bake a studio-room environment map so materials get
+    // realistic ambient reflections/occlusion instead of flat directional-only
+    // shading. This is what gives the "premium render" look rather than a matte
+    // game-asset look -- it costs one offscreen render at startup, nothing per frame.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    pmrem.compileCubemapShader();
+    const studioRoom = buildStudioRoom();
+    this.scene.environment = pmrem.fromScene(studioRoom, 0.04).texture;
+    pmrem.dispose();
+
+    // Lighting: a softer key + fill now that the environment map is carrying
+    // most of the ambient/reflection work, plus the faint violet rim (the
+    // Nocturne accent) kept subtle so it doesn't compete with the key.
+    this.scene.add(new THREE.HemisphereLight(0xeef0ff, 0x2a2c3f, 1.0));
+    const key = new THREE.DirectionalLight(0xffffff, 2.0);
+    key.position.set(0.8, 1.9, 4);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.near = 0.1;
+    key.shadow.camera.far = 8;
+    key.shadow.camera.left = -1.1;
+    key.shadow.camera.right = 1.1;
+    key.shadow.camera.top = 2.2;
+    key.shadow.camera.bottom = -0.1;
+    key.shadow.bias = -0.0015;
+    key.shadow.radius = 3;
+    this.scene.add(key);
+    const fill = new THREE.DirectionalLight(0xffffff, 1.0); fill.position.set(-1.6, 0.8, 2.5); this.scene.add(fill);
     const rim = new THREE.DirectionalLight(0x9184d9, 0.9); rim.position.set(-2, 1.5, -2.5); this.scene.add(rim);
+
+    // A faint, mostly-invisible floor that only shows a soft contact shadow
+    // under the character's feet -- grounds the render without drawing a
+    // visible floor plane (the app's background stays transparent).
+    const shadowCatcher = new THREE.Mesh(
+      new THREE.PlaneGeometry(4, 4),
+      new THREE.ShadowMaterial({ opacity: 0.32 })
+    );
+    shadowCatcher.rotation.x = -Math.PI / 2;
+    shadowCatcher.position.y = 0;
+    shadowCatcher.receiveShadow = true;
+    this.scene.add(shadowCatcher);
 
     this._ro = new ResizeObserver(() => this._resize());
     document.addEventListener('visibilitychange', () => this._kick());
@@ -120,6 +196,8 @@ export class Avatar {
     obj.traverse((n) => {
       if (!(n.isSkinnedMesh || n.isMesh)) return;
       n.frustumCulled = false;
+      n.castShadow = true;
+      n.receiveShadow = true;
       // Blender exports every material as see-through (alpha blend) with no depth writing, so the body can be
       // painted over the clothes. Draw everything as solid instead, with hard-edged cut-outs for hair and eyebrows.
       for (const m of (Array.isArray(n.material) ? n.material : [n.material])) {
