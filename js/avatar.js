@@ -93,7 +93,7 @@ export class Avatar {
       this._setMode('unsupported');
       return;
     }
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isLowPower ? 1 : 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(0x000000, 0);
     // Filmic tone mapping + correct color space: the single biggest things that
     // make a real-time render stop looking like a flat "game asset" and start
@@ -156,42 +156,40 @@ export class Avatar {
     shadowCatcher.receiveShadow = true;
     this.scene.add(shadowCatcher);
 
-    // Post-processing: a touch of bloom on bright highlights + a soft vignette
-    // at the frame edges -- the "cinematic grade" finishing pass. OutputPass
-    // at the end re-applies tone mapping/color space, which composer passes
-    // otherwise bypass.
-    // A plain EffectComposer render target has no multisampling, which is why
-    // edges went soft/jaggy once rendering moved off the renderer's own
-    // antialiased canvas -- an explicit multisampled target restores it.
-    // Skipped on low-power/touch devices: MSAA is real GPU cost phones feel.
-    const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: isLowPower ? 0 : 4, type: THREE.HalfFloatType });
-    this.composer = new THREE.EffectComposer(this.renderer, renderTarget);
-    this.composer.addPass(new THREE.RenderPass(this.scene, this.camera));
-    // Bloom runs on pre-tonemap linear light values, so a plain bright white
-    // shirt can cross a low threshold and glow -- keep strength low and the
-    // threshold high so only genuine specular highlights catch it, not flat
-    // bright surfaces. Skipped entirely on low-power devices (the most
-    // expensive pass -- several downsample/blur passes per frame).
+    // Post-processing (bloom + vignette): desktop/mouse devices only. Any
+    // EffectComposer path -- even with MSAA and bloom both off -- bypasses the
+    // renderer's own built-in antialiasing on its canvas, so on a low-power
+    // touch device (phone) skipping the composer entirely and rendering
+    // directly is both cheaper AND sharper than trying to tune the composer
+    // down. Tone mapping, environment lighting and shadows still apply either
+    // way since those are renderer/scene-level, not composer passes.
     if (!isLowPower) {
+      const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType });
+      this.composer = new THREE.EffectComposer(this.renderer, renderTarget);
+      this.composer.addPass(new THREE.RenderPass(this.scene, this.camera));
+      // Bloom runs on pre-tonemap linear light values, so a plain bright white
+      // shirt can cross a low threshold and glow -- keep strength low and the
+      // threshold high so only genuine specular highlights catch it, not flat
+      // bright surfaces.
       this.bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.3, 1.15);
       this.composer.addPass(this.bloomPass);
+      const vignetteShader = {
+        uniforms: { tDiffuse: { value: null }, offset: { value: 0.55 }, darkness: { value: 0.85 } },
+        vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: `
+          uniform sampler2D tDiffuse; uniform float offset; uniform float darkness; varying vec2 vUv;
+          void main() {
+            vec4 texel = texture2D(tDiffuse, vUv);
+            vec2 uv = (vUv - 0.5) * 2.0;
+            float vig = 1.0 - smoothstep(offset, 1.4, length(uv));
+            vig = mix(1.0, vig, darkness);
+            gl_FragColor = vec4(texel.rgb * vig, texel.a);
+          }`,
+      };
+      this.vignettePass = new THREE.ShaderPass(vignetteShader);
+      this.composer.addPass(this.vignettePass);
+      this.composer.addPass(new THREE.OutputPass());
     }
-    const vignetteShader = {
-      uniforms: { tDiffuse: { value: null }, offset: { value: 0.55 }, darkness: { value: 0.85 } },
-      vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `
-        uniform sampler2D tDiffuse; uniform float offset; uniform float darkness; varying vec2 vUv;
-        void main() {
-          vec4 texel = texture2D(tDiffuse, vUv);
-          vec2 uv = (vUv - 0.5) * 2.0;
-          float vig = 1.0 - smoothstep(offset, 1.4, length(uv));
-          vig = mix(1.0, vig, darkness);
-          gl_FragColor = vec4(texel.rgb * vig, texel.a);
-        }`,
-    };
-    this.vignettePass = new THREE.ShaderPass(vignetteShader);
-    this.composer.addPass(this.vignettePass);
-    this.composer.addPass(new THREE.OutputPass());
 
     this._ro = new ResizeObserver(() => this._resize());
     document.addEventListener('visibilitychange', () => this._kick());
