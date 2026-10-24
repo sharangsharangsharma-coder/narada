@@ -125,7 +125,7 @@ export class Avatar {
       for (const m of (Array.isArray(n.material) ? n.material : [n.material])) {
         m.transparent = false;
         m.depthWrite = true;
-        m.alphaTest = 0.5;
+        m.alphaTest = 0.1;
         m.needsUpdate = true;
       }
     });
