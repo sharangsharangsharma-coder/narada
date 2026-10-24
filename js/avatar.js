@@ -49,9 +49,9 @@ function buildStudioRoom() {
   // Soft key panel (front-upper), a cooler fill panel (side), and a warm
   // bounce panel (floor-ish) -- gives the environment map some directional
   // character instead of a flat grey ambient.
-  addPanel(0xfff4e6, 10, 6, 6, 2, 6, 4, 0, -0.4, 0);
-  addPanel(0xdfe6ff, 6, 5, 8, -6, 3, -2, 0, 0.6, 0);
-  addPanel(0xffffff, 3, 8, 8, 0, -4, 0, Math.PI / 2, 0, 0);
+  addPanel(0xfff4e6, 4.5, 6, 6, 2, 6, 4, 0, -0.4, 0);
+  addPanel(0xdfe6ff, 2.5, 5, 8, -6, 3, -2, 0, 0.6, 0);
+  addPanel(0xffffff, 1.2, 8, 8, 0, -4, 0, Math.PI / 2, 0, 0);
   return room;
 }
 
@@ -95,7 +95,7 @@ export class Avatar {
     // make a real-time render stop looking like a flat "game asset" and start
     // reading as a graded, cinematic image.
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 0.85;
     if ('outputColorSpace' in this.renderer) this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     else if ('outputEncoding' in this.renderer) this.renderer.outputEncoding = THREE.sRGBEncoding;
     this.renderer.shadowMap.enabled = true;
@@ -120,8 +120,8 @@ export class Avatar {
     // Lighting: a softer key + fill now that the environment map is carrying
     // most of the ambient/reflection work, plus the faint violet rim (the
     // Nocturne accent) kept subtle so it doesn't compete with the key.
-    this.scene.add(new THREE.HemisphereLight(0xeef0ff, 0x2a2c3f, 1.0));
-    const key = new THREE.DirectionalLight(0xffffff, 2.0);
+    this.scene.add(new THREE.HemisphereLight(0xeef0ff, 0x2a2c3f, 0.7));
+    const key = new THREE.DirectionalLight(0xffffff, 1.5);
     key.position.set(0.8, 1.9, 4);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
@@ -134,8 +134,8 @@ export class Avatar {
     key.shadow.bias = -0.0015;
     key.shadow.radius = 3;
     this.scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 1.0); fill.position.set(-1.6, 0.8, 2.5); this.scene.add(fill);
-    const rim = new THREE.DirectionalLight(0x9184d9, 0.9); rim.position.set(-2, 1.5, -2.5); this.scene.add(rim);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.7); fill.position.set(-1.6, 0.8, 2.5); this.scene.add(fill);
+    const rim = new THREE.DirectionalLight(0x9184d9, 0.6); rim.position.set(-2, 1.5, -2.5); this.scene.add(rim);
 
     // A faint, mostly-invisible floor that only shows a soft contact shadow
     // under the character's feet -- grounds the render without drawing a
