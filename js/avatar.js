@@ -102,7 +102,10 @@ export class Avatar {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(30, 1, 0.05, 100);
+    // A narrower FOV (was 30) reads less "fisheye"/distorted, closer to how a
+    // photographed subject looks; _frame() already moves the camera back to
+    // compensate, so framing stays the same, just with less perspective skew.
+    this.camera = new THREE.PerspectiveCamera(22, 1, 0.05, 100);
     this._last = 0;
     this._elapsed = 0;
     this.loader = new THREE.GLTFLoader();
@@ -148,6 +151,31 @@ export class Avatar {
     shadowCatcher.position.y = 0;
     shadowCatcher.receiveShadow = true;
     this.scene.add(shadowCatcher);
+
+    // Post-processing: a touch of bloom on bright highlights + a soft vignette
+    // at the frame edges -- the "cinematic grade" finishing pass. OutputPass
+    // at the end re-applies tone mapping/color space, which composer passes
+    // otherwise bypass.
+    this.composer = new THREE.EffectComposer(this.renderer);
+    this.composer.addPass(new THREE.RenderPass(this.scene, this.camera));
+    this.bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.4, 0.85);
+    this.composer.addPass(this.bloomPass);
+    const vignetteShader = {
+      uniforms: { tDiffuse: { value: null }, offset: { value: 0.85 }, darkness: { value: 0.45 } },
+      vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `
+        uniform sampler2D tDiffuse; uniform float offset; uniform float darkness; varying vec2 vUv;
+        void main() {
+          vec4 texel = texture2D(tDiffuse, vUv);
+          vec2 uv = (vUv - 0.5) * 2.0;
+          float vig = 1.0 - smoothstep(offset, 1.4, length(uv));
+          vig = mix(1.0, vig, darkness);
+          gl_FragColor = vec4(texel.rgb * vig, texel.a);
+        }`,
+    };
+    this.vignettePass = new THREE.ShaderPass(vignetteShader);
+    this.composer.addPass(this.vignettePass);
+    this.composer.addPass(new THREE.OutputPass());
 
     this._ro = new ResizeObserver(() => this._resize());
     document.addEventListener('visibilitychange', () => this._kick());
@@ -200,10 +228,14 @@ export class Avatar {
       n.receiveShadow = true;
       // Blender exports every material as see-through (alpha blend) with no depth writing, so the body can be
       // painted over the clothes. Draw everything as solid instead, with hard-edged cut-outs for hair and eyebrows.
+      const maxAniso = this.renderer.capabilities.getMaxAnisotropy();
       for (const m of (Array.isArray(n.material) ? n.material : [n.material])) {
         m.transparent = false;
         m.depthWrite = true;
         m.alphaTest = 0.1;
+        // Sharper texture at glancing angles (the shirt logo/fabric weave) --
+        // free quality, no visual trade-off at this budget.
+        if (m.map) { m.map.anisotropy = maxAniso; m.map.needsUpdate = true; }
         m.needsUpdate = true;
       }
     });
@@ -273,6 +305,12 @@ export class Avatar {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    if (this.composer) {
+      const ratio = this.renderer.getPixelRatio();
+      this.composer.setSize(w, h);
+      this.composer.setPixelRatio(ratio);
+      this.bloomPass?.setSize(w * ratio, h * ratio);
+    }
     this._frame();
   }
 
@@ -305,7 +343,7 @@ export class Avatar {
           this.root.rotation.y = Math.sin(t * 0.6) * 0.18;
           this.root.position.y = Math.sin(t * 1.4) * 0.006;
         }
-        this.renderer.render(this.scene, this.camera);
+        if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
       };
       this._raf = requestAnimationFrame(tick);
     } else if (!shouldRun && this._raf) {
