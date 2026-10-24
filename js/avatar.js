@@ -93,7 +93,10 @@ export class Avatar {
       this._setMode('unsupported');
       return;
     }
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Laptops/desktops can carry a heavier render than a phone, so let them
+    // use more of the display's real pixel density (up to 3x) instead of
+    // capping everyone at the same 2x used for low-power touch devices.
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isLowPower ? 2 : 3));
     this.renderer.setClearColor(0x000000, 0);
     // Filmic tone mapping + correct color space: the single biggest things that
     // make a real-time render stop looking like a flat "game asset" and start
@@ -131,7 +134,7 @@ export class Avatar {
     const key = new THREE.DirectionalLight(0xffffff, 1.5);
     key.position.set(0.8, 1.9, 4);
     key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.mapSize.set(isLowPower ? 1024 : 2048, isLowPower ? 1024 : 2048);
     key.shadow.camera.near = 0.1;
     key.shadow.camera.far = 8;
     key.shadow.camera.left = -1.1;
@@ -164,7 +167,10 @@ export class Avatar {
     // down. Tone mapping, environment lighting and shadows still apply either
     // way since those are renderer/scene-level, not composer passes.
     if (!isLowPower) {
-      const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType });
+      // Higher MSAA sample count than the phone path would ever get -- a
+      // laptop GPU can afford it, and it's the difference between "sharp"
+      // and "a little soft" on the character's silhouette/edges.
+      const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 8, type: THREE.HalfFloatType });
       this.composer = new THREE.EffectComposer(this.renderer, renderTarget);
       this.composer.addPass(new THREE.RenderPass(this.scene, this.camera));
       // Bloom runs on pre-tonemap linear light values, so a plain bright white
@@ -189,6 +195,27 @@ export class Avatar {
       this.vignettePass = new THREE.ShaderPass(vignetteShader);
       this.composer.addPass(this.vignettePass);
       this.composer.addPass(new THREE.OutputPass());
+    }
+
+    // Desktop-only orbit/zoom: lets the avatar be dragged around and zoomed
+    // like a 3D viewer. Gated the same way as post-processing (mouse/desktop
+    // only). _frame() keeps auto-positioning the camera on resize until the
+    // person actually drags or scrolls the view, at which point we stop
+    // fighting them; _frame() still updates controls.target so the pivot
+    // point stays correct if the character/sign changes.
+    this._userOrbiting = false;
+    if (!isLowPower) {
+      this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+      this.controls.enableDamping = true;
+      this.controls.dampingFactor = 0.08;
+      this.controls.enablePan = false;
+      this.controls.minDistance = 0.3;
+      this.controls.maxDistance = 6;
+      this.controls.minPolarAngle = Math.PI * 0.12;
+      this.controls.maxPolarAngle = Math.PI * 0.62;
+      this.controls.rotateSpeed = 0.6;
+      this.controls.zoomSpeed = 0.7;
+      this.controls.addEventListener('start', () => { this._userOrbiting = true; });
     }
 
     this._ro = new ResizeObserver(() => this._resize());
@@ -338,8 +365,16 @@ export class Avatar {
     const distV = (size.y * height) / 2 / t;
     const distH = (size.y * width) / 2 / (t * this.camera.aspect);
     const dist = Math.max(distV, distH);
+    // Once the person has grabbed the view themselves, stop snapping the
+    // camera back on every resize/character change -- just keep the orbit
+    // pivot pointed at the (possibly new) character center.
+    if (this._userOrbiting && this.controls) {
+      this.controls.target.set(c.x, y, c.z);
+      return;
+    }
     this.camera.position.set(c.x, y, this.bounds.max.z + dist);
     this.camera.lookAt(c.x, y, c.z);
+    if (this.controls) this.controls.target.set(c.x, y, c.z);
   }
 
   _kick() {
@@ -357,6 +392,7 @@ export class Avatar {
           this.root.rotation.y = Math.sin(t * 0.6) * 0.18;
           this.root.position.y = Math.sin(t * 1.4) * 0.006;
         }
+        this.controls?.update();
         if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
       };
       this._raf = requestAnimationFrame(tick);
