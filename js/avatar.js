@@ -12,6 +12,10 @@ import * as THREE from '../vendor/three.bundle.js';
 import { clipUrl } from './clips.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+// Touch/coarse-pointer devices are usually phones with much weaker GPUs --
+// scale the post-processing cost down there instead of paying desktop prices
+// everywhere.
+const isLowPower = matchMedia('(pointer: coarse)').matches;
 
 // A file "exists" if it's in the service-worker cache or the server returns a
 // non-HTML 2xx (static hosts that rewrite unknown paths to index.html return HTML).
@@ -89,7 +93,7 @@ export class Avatar {
       this._setMode('unsupported');
       return;
     }
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isLowPower ? 1 : 2));
     this.renderer.setClearColor(0x000000, 0);
     // Filmic tone mapping + correct color space: the single biggest things that
     // make a real-time render stop looking like a flat "game asset" and start
@@ -159,15 +163,19 @@ export class Avatar {
     // A plain EffectComposer render target has no multisampling, which is why
     // edges went soft/jaggy once rendering moved off the renderer's own
     // antialiased canvas -- an explicit multisampled target restores it.
-    const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType });
+    // Skipped on low-power/touch devices: MSAA is real GPU cost phones feel.
+    const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: isLowPower ? 0 : 4, type: THREE.HalfFloatType });
     this.composer = new THREE.EffectComposer(this.renderer, renderTarget);
     this.composer.addPass(new THREE.RenderPass(this.scene, this.camera));
     // Bloom runs on pre-tonemap linear light values, so a plain bright white
     // shirt can cross a low threshold and glow -- keep strength low and the
     // threshold high so only genuine specular highlights catch it, not flat
-    // bright surfaces.
-    this.bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.3, 1.15);
-    this.composer.addPass(this.bloomPass);
+    // bright surfaces. Skipped entirely on low-power devices (the most
+    // expensive pass -- several downsample/blur passes per frame).
+    if (!isLowPower) {
+      this.bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.3, 1.15);
+      this.composer.addPass(this.bloomPass);
+    }
     const vignetteShader = {
       uniforms: { tDiffuse: { value: null }, offset: { value: 0.55 }, darkness: { value: 0.85 } },
       vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
