@@ -156,7 +156,11 @@ export class Avatar {
     // at the frame edges -- the "cinematic grade" finishing pass. OutputPass
     // at the end re-applies tone mapping/color space, which composer passes
     // otherwise bypass.
-    this.composer = new THREE.EffectComposer(this.renderer);
+    // A plain EffectComposer render target has no multisampling, which is why
+    // edges went soft/jaggy once rendering moved off the renderer's own
+    // antialiased canvas -- an explicit multisampled target restores it.
+    const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType });
+    this.composer = new THREE.EffectComposer(this.renderer, renderTarget);
     this.composer.addPass(new THREE.RenderPass(this.scene, this.camera));
     // Bloom runs on pre-tonemap linear light values, so a plain bright white
     // shirt can cross a low threshold and glow -- keep strength low and the
