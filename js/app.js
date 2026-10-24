@@ -59,10 +59,22 @@ const stageCaption = () => avatar.host?.querySelector('.ss-caption');
 avatar.onStep = (id) => {
   const c = stageCaption();
   if (c) c.textContent = signById.get(id)?.en || '';
+  $$('#gloss .tag').forEach((t) => t.classList.toggle('is-current', t.dataset.signId === id));
   store.markSeen(id);
   renderStats();
 };
-avatar.onMode = () => { renderDictionary(); };
+avatar.onMode = (mode) => { renderDictionary(); updateAvatarStatus(mode); };
+
+// Desktop-only status pill in the header (hidden on mobile via CSS). Harmless
+// no-op if the element isn't present.
+const AVATAR_STATUS_TEXT = { loading: 'Loading avatar…', model: 'Avatar ready', standin: 'Stand-in avatar', unsupported: '3D unavailable' };
+function updateAvatarStatus(mode) {
+  const badge = $('#avatar-status');
+  if (!badge) return;
+  badge.replaceChildren(el('span', 'dot'), document.createTextNode(AVATAR_STATUS_TEXT[mode] || ''));
+  badge.classList.toggle('is-live', mode === 'model');
+}
+updateAvatarStatus(avatar.mode);
 
 // ── navigation ─────────────────────────────────────────────────────────────
 function showTab(tab, { focus = false } = {}) {
@@ -108,7 +120,11 @@ function renderGloss(ids, missing) {
   box.replaceChildren();
   if (ids.length) {
     box.append(el('span', 'text-muted', 'Signing:'));
-    ids.forEach((id) => box.append(el('span', 'tag tag-accent', signById.get(id).en)));
+    ids.forEach((id) => {
+      const tag = el('span', 'tag tag-accent', signById.get(id).en);
+      tag.dataset.signId = id;
+      box.append(tag);
+    });
   }
   if (missing.length) {
     const line = el('span', 'ss-gloss-miss text-muted',
