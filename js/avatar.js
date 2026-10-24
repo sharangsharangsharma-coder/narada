@@ -165,7 +165,7 @@ export class Avatar {
     this.bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.3, 1.15);
     this.composer.addPass(this.bloomPass);
     const vignetteShader = {
-      uniforms: { tDiffuse: { value: null }, offset: { value: 0.85 }, darkness: { value: 0.45 } },
+      uniforms: { tDiffuse: { value: null }, offset: { value: 0.55 }, darkness: { value: 0.85 } },
       vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
       fragmentShader: `
         uniform sampler2D tDiffuse; uniform float offset; uniform float darkness; varying vec2 vUv;
