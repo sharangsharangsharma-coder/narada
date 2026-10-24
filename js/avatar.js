@@ -69,7 +69,7 @@ export class Avatar {
     // Lighting: bright front-ish key + fill, soft ambient, and a faint violet rim
     // from behind (the Nocturne accent, kept subtle so it doesn't read as the main light).
     this.scene.add(new THREE.HemisphereLight(0xeef0ff, 0x2a2c3f, 2.2));
-    const key = new THREE.DirectionalLight(0xffffff, 3.0); key.position.set(0.8, 1.6, 4); this.scene.add(key);
+    const key = new THREE.DirectionalLight(0xffffff, 1.8); key.position.set(0.8, 1.6, 4); this.scene.add(key);
     const fill = new THREE.DirectionalLight(0xffffff, 1.4); fill.position.set(-1.6, 0.8, 2.5); this.scene.add(fill);
     const rim = new THREE.DirectionalLight(0x9184d9, 0.9); rim.position.set(-2, 1.5, -2.5); this.scene.add(rim);
 
