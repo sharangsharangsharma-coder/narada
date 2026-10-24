@@ -183,3 +183,101 @@ textarea.input { resize: vertical; min-height: 84px; font: inherit; }
 .ss-wordmark { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; }
 .ss-w1 { color: #fff; }
 .ss-w2 { background: linear-gradient(90deg, #00c8ff 0%, #4b6bff 55%, #a855f7 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+
+/* ── Desktop demo stage ───────────────────────────────────────────────────
+   Everything below only applies at >=900px. Mobile layout above is untouched.
+   This is the window that gets presented live on a laptop: a big interactive
+   avatar (drag to orbit, scroll to zoom — wired in avatar.js) with a floating
+   glass panel for the actual demo controls (type → gloss → sign back). */
+.ss-avatar-status { display: none; }
+.ss-side-panel { display: contents; }
+
+@media (min-width: 900px) {
+  .ss-app {
+    max-width: none; width: 100%; border-inline: 0;
+  }
+  .ss-head {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-5);
+    padding: var(--space-5) var(--space-8); border-bottom: 1px solid var(--color-divider);
+  }
+  .ss-brand { margin-bottom: 0; }
+  .ss-head-row { gap: var(--space-5); }
+  .ss-title { font-size: 17px; font-weight: 600; color: var(--color-neutral-400); }
+
+  .ss-avatar-status {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 500; color: var(--color-neutral-400);
+    padding: 5px 12px; border-radius: 999px; border: 1px solid var(--color-divider);
+    background: var(--color-surface); white-space: nowrap;
+  }
+  .ss-avatar-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-neutral-500); flex: none; }
+  .ss-avatar-status.is-live .dot { background: #3ddc84; box-shadow: 0 0 0 3px color-mix(in srgb, #3ddc84 25%, transparent); }
+
+  /* Tab bar becomes a top navbar, sitting beside the brand instead of a
+     bottom mobile tab strip. */
+  .ss-tabs {
+    order: -1; flex: none; justify-content: flex-start; gap: var(--space-2);
+    padding: 0; margin-left: var(--space-2); border-top: 0; background: none;
+  }
+  .ss-tab {
+    flex-direction: row; gap: 7px; padding: 9px 16px; border-radius: 999px; min-width: 0;
+  }
+  .ss-tab i { font-size: 15px; }
+  .ss-tab span { font-size: 13px; }
+  .ss-tab:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+  .ss-tab[aria-current="page"] {
+    color: var(--color-text); background: var(--color-surface);
+    box-shadow: inset 0 0 0 1px var(--color-divider);
+  }
+
+  .ss-main { padding: var(--space-8); }
+
+  /* Translate: big hero avatar on the left, floating glass panel on the right */
+  #screen-translate { height: 100%; }
+  #panel-en-isl {
+    flex-direction: row; align-items: stretch; gap: var(--space-6); height: 100%;
+  }
+  #panel-en-isl .ss-stage-card {
+    flex: 1; min-width: 0; position: relative; border-radius: var(--radius-lg); overflow: hidden;
+    background:
+      radial-gradient(55% 50% at 50% 36%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 70%),
+      var(--color-surface);
+  }
+  #panel-en-isl .ss-stage-card::after {
+    /* faint orbit-ring hint, purely decorative */
+    content: ""; position: absolute; left: 50%; bottom: 14%; width: 62%; aspect-ratio: 3.4 / 1;
+    transform: translateX(-50%); border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 22%, transparent);
+    pointer-events: none; z-index: 1;
+  }
+  #panel-en-isl .ss-stage { cursor: grab; }
+  #panel-en-isl .ss-stage:active { cursor: grabbing; }
+
+  .ss-side-panel {
+    display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-4);
+    width: 340px; flex: none;
+    padding: var(--space-5); border-radius: var(--radius-lg);
+    border: 1px solid var(--color-divider);
+    background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+    backdrop-filter: blur(16px) saturate(1.2);
+    box-shadow: var(--shadow-md);
+  }
+  #panel-en-isl .ss-gloss {
+    flex: 1; align-content: flex-start; align-items: flex-start; overflow: auto;
+  }
+  .ss-gloss .tag.is-current {
+    box-shadow: 0 0 0 2px var(--color-accent);
+  }
+  #panel-en-isl .ss-inputbar { flex: none; }
+
+  /* Big bottom-left current-word callout (reuses the existing caption tag) */
+  .ss-caption {
+    background: none; border: 0; padding: 0; border-radius: 0;
+    font-size: 42px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.05;
+    color: var(--color-text);
+    left: var(--space-7); bottom: var(--space-6); right: auto; max-width: 70%;
+    text-shadow: 0 2px 28px color-mix(in srgb, var(--color-bg) 65%, transparent);
+  }
+
+  .ss-dir { align-self: flex-start; }
+}
