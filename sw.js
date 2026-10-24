@@ -4,7 +4,7 @@
 //  • Everything else (incl. avatar/clip .glb files): stale-while-revalidate,
 //    so a clip you've viewed once keeps working offline and refreshes in the background.
 // Bump VERSION when you change the shell file list.
-const VERSION = 'narada-v2';
+const VERSION = 'narada-v3';
 
 const SHELL = [
   './',
