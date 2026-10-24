@@ -158,7 +158,11 @@ export class Avatar {
     // otherwise bypass.
     this.composer = new THREE.EffectComposer(this.renderer);
     this.composer.addPass(new THREE.RenderPass(this.scene, this.camera));
-    this.bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.4, 0.85);
+    // Bloom runs on pre-tonemap linear light values, so a plain bright white
+    // shirt can cross a low threshold and glow -- keep strength low and the
+    // threshold high so only genuine specular highlights catch it, not flat
+    // bright surfaces.
+    this.bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.3, 1.15);
     this.composer.addPass(this.bloomPass);
     const vignetteShader = {
       uniforms: { tDiffuse: { value: null }, offset: { value: 0.85 }, darkness: { value: 0.45 } },
