@@ -106,6 +106,8 @@ textarea.input { resize: vertical; min-height: 84px; font: inherit; }
 }
 .ss-camera video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; }
 .ss-camera.is-live video { display: block; }
+.ss-camera canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; transform: scaleX(-1); display: none; }
+.ss-camera.is-live canvas { display: block; }
 .ss-camera.is-live::before, .ss-camera.is-live .ss-camera-hint { display: none; }
 .ss-camera-hint { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); text-align: center; padding: 0 var(--space-6); font-size: 14px; }
 .ss-camera-hint i { font-size: 30px; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
