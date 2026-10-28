@@ -181,7 +181,7 @@ textarea.input { resize: vertical; min-height: 84px; font: inherit; }
 .ss-inputbar .btn { flex: none; }
 
 /* ── logo in the header ─────────────────────────────────────────────────────────── */
-.ss-logo { height: 26px; width: auto; display: block; }
+.ss-logo { height: 44px; width: auto; display: block; }
 .ss-wordmark { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; }
 .ss-w1 { color: #fff; }
 .ss-w2 { background: linear-gradient(90deg, #00c8ff 0%, #4b6bff 55%, #a855f7 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
